@@ -160,6 +160,32 @@ class TagLong(Tag):
         return self.value
 
 
+class TagFloat(Tag):
+    TYPE = 5
+
+    def __init__(self, value, name=None):
+        super().__init__(TagFloat.TYPE, name)
+        self.value = value
+
+    def __repr__(self):
+        return "TagFloat({}:{})".format(
+            self.name.value if hasattr(self.name, 'value') else b'',
+            self.value
+        )
+
+    @classmethod
+    def load(cls, nbt, parse_name=True):
+        name = get_name(nbt) if parse_name else TagEmptyString()
+        value = struct.unpack('>f', nbt._pop(4))
+        return cls(value, name)
+
+    def to_bytes(self):
+        return self.name.to_bytes() + struct.pack(">f", self.value)
+
+    def to_obj(self):
+        return self.value
+
+
 class TagDouble(Tag):
     TYPE = 6
 
@@ -175,11 +201,15 @@ class TagDouble(Tag):
 
     @classmethod
     def load(cls, nbt, parse_name=True):
-        print("TODO: DOUBLE NOT YET FULLY IMPLEMENTED")
         name = get_name(nbt) if parse_name else TagEmptyString()
-        print(name)
-        print(nbt._pop(8))
-        # value = float.from_
+        value = struct.unpack('>d', nbt._pop(8))
+        return cls(value, name)
+
+    def to_bytes(self):
+        return self.name.to_bytes() + struct.pack(">d", self.value)
+
+    def to_obj(self):
+        return self.value
 
 
 class TagEmptyString:
@@ -314,7 +344,12 @@ class TagCompound(Tag):
     def parse_tags(nbt):
         tags = {}
         while True:
-            tag = get_tag(nbt._pop()).load(nbt)
+            try:
+                tag_id = nbt._pop()
+                tag = get_tag(tag_id).load(nbt)
+            except KeyError:
+                print("Could not interpret tag {}".format(tag_id))
+                continue
             if isinstance(tag, TagEnd):
                 break
             tags[tag.name.value] = tag
@@ -370,18 +405,50 @@ class TagIntArray(Tag):
         return [i.to_obj() for i in self.array]
 
 
+class TagLongArray(Tag):
+    TYPE = 12
+
+    def __init__(self, array=None, name=None):
+        super().__init__(TagLongArray.TYPE, name)
+        self.array = array
+
+    @classmethod
+    def load(cls, nbt, parse_name=True):
+        name = get_name(nbt) if parse_name else TagEmptyString()
+        length = TagInt.load(nbt, False)
+        array = TagLongArray.parse_array(length, nbt)
+        return cls(array=array, name=name)
+
+    @staticmethod
+    def parse_array(length, nbt):
+        array = []
+        while len(array) != length.value:
+            tag = TagLong.load(nbt, parse_name=False)
+            array.append(tag)
+        return array
+
+    def to_bytes(self):
+        return self.name.to_bytes() + TagInt(len(self.array)).to_bytes() + b''.join(
+            x.to_bytes() for x in self.array)
+
+    def to_obj(self):
+        return [i.to_obj() for i in self.array]
+
+
 TAGS = {
     0: TagEnd,
     1: TagByte,
     2: TagShort,
     3: TagInt,
     4: TagLong,
+    5: TagFloat,
     6: TagDouble,
     7: TagByteArray,
     8: TagString,
     9: TagList,
     10: TagCompound,
-    11: TagIntArray
+    11: TagIntArray,
+    12: TagLongArray
 }
 
 
