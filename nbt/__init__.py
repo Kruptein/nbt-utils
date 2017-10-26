@@ -238,8 +238,7 @@ class TagByteArray(Tag):
     def parse_array(length, nbt):
         array = []
         while len(array) != length.value:
-            tag = TagByte.load(nbt, parse_name=False)
-            array.append(tag)
+            array.append(TagByte.load(nbt, parse_name=False))
         return array
 
     def to_bytes(self):

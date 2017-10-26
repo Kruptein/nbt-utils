@@ -16,6 +16,9 @@ class Region:
         self.is_read = False
         self.raw_data = None
 
+    def __repr__(self):
+        return "Region({},{})".format(self.x, self.z)
+
     @classmethod
     def from_chunk_coord(cls, coord: Coord, regionpath=os.getcwd()):
         return cls(coord.x >> 5, coord.z >> 5, regionpath=regionpath)
@@ -44,10 +47,15 @@ class Region:
     def chunks(self):
         if not self.is_read:
             self.read()
-        i = 0
-        while i < 4095:
+        # startTime = int(round(time.time() * 1000))
+        # with concurrent.futures.ThreadPoolExecutor() as executor:
+        #     futures = [executor.submit(self.__get_chunk_data, i) for i in range(0, 1024, 4)]
+        #     for future in concurrent.futures.as_completed(futures):
+        #         yield future.result()
+        for i in range(0, 1024, 4):
             yield self.__get_chunk_data(i)
-            i += 4
+            # endTime = int(round(time.time() * 1000))
+            # print(endTime - startTime, 'ms')
 
     def get_chunk_data(self, coord: Coord):
         if not self.is_read:
@@ -55,10 +63,14 @@ class Region:
         return self.__get_chunk_data(Region.get_chunk_location_offset(coord))
 
     def __get_chunk_data(self, location):
+        # print("Handling chunk {}".format(location))
         # the sector offset is in orders of 4KiB sectors
         sector_offset = int.from_bytes(self.raw_data[location:location + 3], byteorder='big',
                                        signed=True) * 4 * 1024
         sector_count = self.raw_data[location + 3] * 4 * 1024
+        if sector_offset == 0 and sector_count == 0:
+            return NBT()
+
         raw_chunkdata = self.raw_data[sector_offset:sector_offset + sector_count]
         chunk_size = int.from_bytes(raw_chunkdata[:4], byteorder='big', signed=True)
         compression = raw_chunkdata[4]
