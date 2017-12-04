@@ -4,6 +4,7 @@ import struct
 class NBT:
     def __init__(self, data=None, fileobj=None):
         self.root = TagCompound(name='')
+        self.chunk_coord = None
         if fileobj is not None:
             data = b''.join(fileobj.readlines())
         if data is not None:
@@ -39,6 +40,11 @@ class Tag:
 
     def to_bytes(self):
         pass
+
+    def __contains__(self, item):
+        if hasattr(self, 'tags'):
+            return item in self.tags
+        return item in self.__dict__
 
 
 class TagEnd(Tag):
@@ -176,7 +182,7 @@ class TagFloat(Tag):
     @classmethod
     def load(cls, nbt, parse_name=True):
         name = get_name(nbt) if parse_name else TagEmptyString()
-        value = struct.unpack('>f', nbt._pop(4))
+        value = struct.unpack('>f', nbt._pop(4))[0]
         return cls(value, name)
 
     def to_bytes(self):
@@ -202,7 +208,7 @@ class TagDouble(Tag):
     @classmethod
     def load(cls, nbt, parse_name=True):
         name = get_name(nbt) if parse_name else TagEmptyString()
-        value = struct.unpack('>d', nbt._pop(8))
+        value = struct.unpack('>d', nbt._pop(8))[0]
         return cls(value, name)
 
     def to_bytes(self):

@@ -41,8 +41,13 @@ class Region:
         if not os.path.exists(fp):
             raise FileNotFoundError("The region file was not found in the current path: {}".format(fp))
         with open(fp, 'rb') as f:
-            self.raw_data = b''.join(f.readlines())
+            self.raw_data = bytearray(b''.join(f.readlines()))
         self.is_read = True
+
+    def write(self):
+        fp = os.path.join(self.regionpath, self.filename)
+        with open(fp, 'wb') as f:
+            f.write(self.raw_data)
 
     def chunks(self):
         if not self.is_read:
@@ -56,6 +61,21 @@ class Region:
             yield self.__get_chunk_data(i)
             # endTime = int(round(time.time() * 1000))
             # print(endTime - startTime, 'ms')
+
+    def set_chunk_data(self, location, data):
+        sector_offset = int.from_bytes(self.raw_data[location:location + 3], byteorder='big',
+                                       signed=True) * 4 * 1024
+        sector_count = self.raw_data[location + 3] * 4 * 1024
+        if sector_offset == 0 and sector_count == 0:
+            return
+
+        raw_chunkdata = self.raw_data[sector_offset:sector_offset + sector_count]
+        raw_chunkdata[:4] = len(data).to_bytes(4, byteorder='big', signed=True)  # set chunk size
+        compression = raw_chunkdata[4]
+        if compression == 2:
+            data = zlib.compress(data)
+        raw_chunkdata[5:] = data.ljust(sector_count - 5, b'\x00')  # 5 = lenght(4) + compression(1)
+        self.raw_data[sector_offset:sector_offset + sector_count] = raw_chunkdata
 
     def get_chunk_data(self, coord: Coord):
         if not self.is_read:
@@ -77,4 +97,6 @@ class Region:
         data = raw_chunkdata[5:]
         if compression == 2:
             data = zlib.decompress(data)
-        return NBT(data=data)
+        n = NBT(data=data)
+        n.chunk_coord = location
+        return n
