@@ -11,7 +11,6 @@ def fix_command_blocks(regionpath):
 
 def fix_command_blocks_in_region(region):
     for chunk in region.chunks():
-        print(chunk.chunk_coord)
         if b'Level' not in chunk.root:
             continue
         for tag in chunk.root[b'Level'][b'TileEntities'].tags:
