@@ -264,7 +264,6 @@ class TagString(Tag):
             self.value = bytes(value, 'utf-8')
         else:
             self.value = value
-        self.length = TagShort(len(value))
 
     @classmethod
     def load(cls, nbt, parse_name=True):
@@ -274,7 +273,7 @@ class TagString(Tag):
         return cls(value, name)
 
     def to_bytes(self):
-        return self.name.to_bytes() + self.length.to_bytes() + self.value
+        return self.name.to_bytes() + TagShort(len(self.value)).to_bytes() + self.value
 
     def to_obj(self):
         return self.value
