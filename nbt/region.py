@@ -52,15 +52,8 @@ class Region:
     def chunks(self):
         if not self.is_read:
             self.read()
-        # startTime = int(round(time.time() * 1000))
-        # with concurrent.futures.ThreadPoolExecutor() as executor:
-        #     futures = [executor.submit(self.__get_chunk_data, i) for i in range(0, 1024, 4)]
-        #     for future in concurrent.futures.as_completed(futures):
-        #         yield future.result()
         for i in range(0, 1024, 4):
             yield self.__get_chunk_data(i)
-            # endTime = int(round(time.time() * 1000))
-            # print(endTime - startTime, 'ms')
 
     def set_chunk_data(self, location, data):
         sector_offset = int.from_bytes(self.raw_data[location:location + 3], byteorder='big',
@@ -68,12 +61,13 @@ class Region:
         sector_count = self.raw_data[location + 3] * 4 * 1024
         if sector_offset == 0 and sector_count == 0:
             return
-
         raw_chunkdata = self.raw_data[sector_offset:sector_offset + sector_count]
-        raw_chunkdata[:4] = len(data).to_bytes(4, byteorder='big', signed=True)  # set chunk size
         compression = raw_chunkdata[4]
         if compression == 2:
             data = zlib.compress(data)
+
+        raw_chunkdata[:4] = len(data).to_bytes(4, byteorder='big', signed=True)  # set chunk size
+
         raw_chunkdata[5:] = data.ljust(sector_count - 5, b'\x00')  # 5 = lenght(4) + compression(1)
         self.raw_data[sector_offset:sector_offset + sector_count] = raw_chunkdata
 
@@ -89,7 +83,9 @@ class Region:
                                        signed=True) * 4 * 1024
         sector_count = self.raw_data[location + 3] * 4 * 1024
         if sector_offset == 0 and sector_count == 0:
-            return NBT()
+            n = NBT()
+            n.chunk_coord = location
+            return n
 
         raw_chunkdata = self.raw_data[sector_offset:sector_offset + sector_count]
         chunk_size = int.from_bytes(raw_chunkdata[:4], byteorder='big', signed=True)
